@@ -4,6 +4,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import type { AppConfig } from './common/config/configuration';
 
@@ -27,10 +28,32 @@ async function bootstrap(): Promise<void> {
 
   app.enableShutdownHooks();
 
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Chat Kafka API')
+    .setDescription(
+      'Multi-tenant messaging service. Authenticate with `Authorization: Bearer <token>`. ' +
+        'Dev tokens: `dev-token-tenant-a` (tenant-a), `dev-token-tenant-b` (tenant-b).',
+    )
+    .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        description: 'Dev token e.g. `dev-token-tenant-a`',
+      },
+      'bearer',
+    )
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('docs', app, document, {
+    swaggerOptions: { persistAuthorization: true },
+  });
+
   const config = app.get(ConfigService<AppConfig, true>);
   const port = config.get('port', { infer: true });
   await app.listen({ port, host: '0.0.0.0' });
   Logger.log(`Application listening on http://0.0.0.0:${port}`, 'Bootstrap');
+  Logger.log(`Swagger UI available at http://0.0.0.0:${port}/docs`, 'Bootstrap');
 }
 
 void bootstrap();
