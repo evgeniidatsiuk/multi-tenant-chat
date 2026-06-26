@@ -22,31 +22,21 @@ describe('CreateMessageUseCase', () => {
     publishMessageCreated: jest.fn().mockResolvedValue(undefined),
   });
 
-  const buildWriter = (): jest.Mocked<TransactionalWriter> & {
-    rolledBack: number;
-    committed: number;
-  } => {
-    let committed = 0;
-    let rolledBack = 0;
+  const buildWriter = () => {
     const writer = {
-      run: jest.fn(async <T>(fn: () => Promise<T>) => {
+      committed: 0,
+      rolledBack: 0,
+      run: jest.fn(async <T>(fn: () => Promise<T>): Promise<T> => {
         try {
-          const r = await fn();
-          committed += 1;
-          return r;
-        } catch (e) {
-          rolledBack += 1;
-          throw e;
+          const result = await fn();
+          writer.committed += 1;
+          return result;
+        } catch (error) {
+          writer.rolledBack += 1;
+          throw error;
         }
       }),
-    } as unknown as jest.Mocked<TransactionalWriter> & {
-      rolledBack: number;
-      committed: number;
-    };
-    Object.defineProperties(writer, {
-      committed: { get: () => committed },
-      rolledBack: { get: () => rolledBack },
-    });
+    } satisfies TransactionalWriter & { committed: number; rolledBack: number };
     return writer;
   };
 
