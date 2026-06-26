@@ -4,6 +4,9 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY tsconfig*.json nest-cli.json ./
+COPY types ./types
+
+
 COPY src ./src
 RUN pnpm run build && pnpm prune --prod
 
