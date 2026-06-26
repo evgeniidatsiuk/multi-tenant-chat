@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-export type MessageMetadata = Record<string, unknown>;
+type MessageMetadata = Record<string, unknown>;
 
 export interface MessageProps {
   id: string;

@@ -1,7 +1,4 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import type { HydratedDocument } from 'mongoose';
-
-export type MessageDocument = HydratedDocument<MessageModel>;
 
 @Schema({ collection: 'messages', versionKey: false })
 export class MessageModel {

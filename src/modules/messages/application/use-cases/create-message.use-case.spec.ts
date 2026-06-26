@@ -13,14 +13,20 @@ describe('CreateMessageUseCase', () => {
     };
   };
 
-  const buildRepo = (): jest.Mocked<MessageRepository> => ({
-    save: jest.fn().mockResolvedValue(undefined),
-    list: jest.fn(),
-  });
+  const buildRepo = () => {
+    const repo = {
+      save: jest.fn().mockResolvedValue(undefined),
+      list: jest.fn(),
+    } satisfies jest.Mocked<MessageRepository>;
+    return repo;
+  };
 
-  const buildPublisher = (): jest.Mocked<MessagePublisher> => ({
-    publishMessageCreated: jest.fn().mockResolvedValue(undefined),
-  });
+  const buildPublisher = () => {
+    const publisher = {
+      publishMessageCreated: jest.fn().mockResolvedValue(undefined),
+    } satisfies jest.Mocked<MessagePublisher>;
+    return publisher;
+  };
 
   const buildWriter = () => {
     const writer = {

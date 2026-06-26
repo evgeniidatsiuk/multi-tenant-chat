@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-export type OutboxStatus = 'pending' | 'publishing' | 'published' | 'failed';
+type OutboxStatus = 'pending' | 'publishing' | 'published' | 'failed';
 
 export interface OutboxEntryProps {
   id: string;
@@ -16,7 +16,7 @@ export interface OutboxEntryProps {
   leaseExpiresAt?: Date;
 }
 
-export interface NewOutboxEntry {
+interface NewOutboxEntry {
   topic: string;
   key?: string | null;
   headers?: Record<string, string>;
@@ -55,12 +55,6 @@ export class OutboxEntry {
   get topic(): string {
     return this.props.topic;
   }
-  get key(): string | null {
-    return this.props.key;
-  }
-  get headers(): Record<string, string> {
-    return this.props.headers;
-  }
   get payload(): string {
     return this.props.payload;
   }
@@ -69,9 +63,6 @@ export class OutboxEntry {
   }
   get attempts(): number {
     return this.props.attempts;
-  }
-  get createdAt(): Date {
-    return this.props.createdAt;
   }
 
   toJSON(): OutboxEntryProps {

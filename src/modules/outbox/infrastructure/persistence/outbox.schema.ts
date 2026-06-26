@@ -1,7 +1,4 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import type { HydratedDocument } from 'mongoose';
-
-export type OutboxDocument = HydratedDocument<OutboxModel>;
 
 @Schema({ collection: 'outbox', versionKey: false })
 export class OutboxModel {

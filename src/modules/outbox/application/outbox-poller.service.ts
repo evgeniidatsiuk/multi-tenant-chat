@@ -5,15 +5,14 @@ import {
   type OnApplicationShutdown,
   type OnModuleInit,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import type { AppConfig } from '../../../common/config/configuration';
 import { OUTBOX_REPOSITORY, type OutboxRepository } from '../domain/outbox.repository';
-import { KafkaOutboxPublisher } from '../infrastructure/messaging/kafka-outbox.publisher';
+import { OUTBOX_CONFIG, type OutboxConfig } from './ports/outbox-config';
+import { OUTBOX_PUBLISHER, type OutboxPublisher } from './ports/outbox-publisher.port';
 
 /**
  * Drains the outbox by repeatedly claiming pending entries and dispatching
- * them to Kafka. Each iteration runs until the queue empties so that a burst
- * of writes is flushed without waiting for the next tick.
+ * them through the publisher. Each tick runs until the queue empties so a
+ * burst of writes is flushed without waiting for the next interval.
  */
 @Injectable()
 export class OutboxPoller implements OnModuleInit, OnApplicationShutdown {
@@ -24,17 +23,16 @@ export class OutboxPoller implements OnModuleInit, OnApplicationShutdown {
 
   constructor(
     @Inject(OUTBOX_REPOSITORY) private readonly repository: OutboxRepository,
-    private readonly publisher: KafkaOutboxPublisher,
-    private readonly config: ConfigService<AppConfig, true>,
+    @Inject(OUTBOX_PUBLISHER) private readonly publisher: OutboxPublisher,
+    @Inject(OUTBOX_CONFIG) private readonly cfg: OutboxConfig,
   ) {}
 
   onModuleInit(): void {
-    const cfg = this.config.get('outbox', { infer: true });
-    if (!cfg.enabled) {
+    if (!this.cfg.enabled) {
       this.logger.warn('Outbox poller disabled by configuration');
       return;
     }
-    this.scheduleNext(cfg.pollIntervalMs);
+    this.scheduleNext();
   }
 
   async onApplicationShutdown(): Promise<void> {
@@ -48,12 +46,11 @@ export class OutboxPoller implements OnModuleInit, OnApplicationShutdown {
 
   async tick(): Promise<number> {
     if (this.stopped) return 0;
-    const cfg = this.config.get('outbox', { infer: true });
     let processed = 0;
     while (!this.stopped) {
       const claimed = await this.repository.claim({
-        batchSize: cfg.batchSize,
-        leaseMs: cfg.leaseMs,
+        batchSize: this.cfg.batchSize,
+        leaseMs: this.cfg.leaseMs,
       });
       if (claimed.length === 0) break;
       for (const entry of claimed) {
@@ -64,22 +61,22 @@ export class OutboxPoller implements OnModuleInit, OnApplicationShutdown {
         } catch (error) {
           const message = (error as Error).message ?? 'unknown error';
           this.logger.error(`Failed to publish outbox entry ${entry.id}: ${message}`);
-          await this.repository.markFailed(entry.id, message, cfg.maxAttempts);
+          await this.repository.markFailed(entry.id, message, this.cfg.maxAttempts);
         }
       }
     }
     return processed;
   }
 
-  private scheduleNext(delayMs: number): void {
+  private scheduleNext(): void {
     this.timer = setTimeout(() => {
-      void this.runOnce(delayMs);
-    }, delayMs);
+      void this.runOnce();
+    }, this.cfg.pollIntervalMs);
     // Don't keep the event loop alive solely for the poller.
     this.timer.unref?.();
   }
 
-  private async runOnce(delayMs: number): Promise<void> {
+  private async runOnce(): Promise<void> {
     if (this.stopped) return;
     this.running = true;
     try {
@@ -88,7 +85,7 @@ export class OutboxPoller implements OnModuleInit, OnApplicationShutdown {
       this.logger.error(`Outbox tick failed: ${(error as Error).message}`);
     } finally {
       this.running = false;
-      if (!this.stopped) this.scheduleNext(delayMs);
+      if (!this.stopped) this.scheduleNext();
     }
   }
 }

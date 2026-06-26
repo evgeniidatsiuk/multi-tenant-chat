@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { Injectable } from '@nestjs/common';
 
-export interface TenantState {
+interface TenantState {
   tenantId: string;
   userId: string;
 }
@@ -20,9 +20,5 @@ export class TenantContext {
       throw new Error('Tenant context is not initialised for the current execution');
     }
     return state;
-  }
-
-  tryGet(): TenantState | undefined {
-    return this.storage.getStore();
   }
 }

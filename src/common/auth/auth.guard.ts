@@ -3,10 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import type { FastifyRequest } from 'fastify';
 import type { AppConfig } from '../config/configuration';
 
-export const TENANT_HEADER = 'x-tenant-id';
-export const AUTH_HEADER = 'authorization';
+const TENANT_HEADER = 'x-tenant-id';
+const AUTH_HEADER = 'authorization';
 
-export interface AuthenticatedPrincipal {
+interface AuthenticatedPrincipal {
   userId: string;
   tenantId: string;
 }
