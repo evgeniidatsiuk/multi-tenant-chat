@@ -8,7 +8,11 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import type { AppConfig } from './common/config/configuration';
 
+const SHUTDOWN_SIGNALS = ['SIGINT', 'SIGTERM'] as const;
+
 async function bootstrap(): Promise<void> {
+  const logger = new Logger('Bootstrap');
+
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({ trustProxy: true, bodyLimit: 1024 * 1024 }),
@@ -49,11 +53,40 @@ async function bootstrap(): Promise<void> {
     swaggerOptions: { persistAuthorization: true },
   });
 
+  let shuttingDown = false;
+  const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.log(`Received ${signal}, shutting down gracefully...`);
+    try {
+      await app.close();
+      logger.log('Application closed cleanly');
+      process.exit(0);
+    } catch (err) {
+      logger.error('Error during shutdown', err instanceof Error ? err.stack : String(err));
+      process.exit(1);
+    }
+  };
+  for (const signal of SHUTDOWN_SIGNALS) {
+    process.on(signal, () => void shutdown(signal));
+  }
+  process.on('unhandledRejection', (reason) => {
+    logger.error('Unhandled promise rejection', reason instanceof Error ? reason.stack : reason);
+  });
+  process.on('uncaughtException', (err) => {
+    logger.error('Uncaught exception', err.stack ?? String(err));
+    void shutdown('SIGTERM');
+  });
+
   const config = app.get(ConfigService<AppConfig, true>);
   const port = config.get('port', { infer: true });
   await app.listen({ port, host: '0.0.0.0' });
-  Logger.log(`Application listening on http://0.0.0.0:${port}`, 'Bootstrap');
-  Logger.log(`Swagger UI available at http://0.0.0.0:${port}/docs`, 'Bootstrap');
+  logger.log(`Application listening on http://0.0.0.0:${port}`);
+  logger.log(`Swagger UI available at http://0.0.0.0:${port}/docs`);
 }
 
-void bootstrap();
+bootstrap().catch((err) => {
+  // eslint-disable-next-line no-console
+  console.error('Fatal: bootstrap failed', err);
+  process.exit(1);
+});
