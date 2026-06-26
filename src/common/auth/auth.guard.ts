@@ -11,12 +11,6 @@ interface AuthenticatedPrincipal {
   tenantId: string;
 }
 
-declare module 'fastify' {
-  interface FastifyRequest {
-    principal?: AuthenticatedPrincipal;
-  }
-}
-
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(private readonly config: ConfigService<AppConfig, true>) {}
